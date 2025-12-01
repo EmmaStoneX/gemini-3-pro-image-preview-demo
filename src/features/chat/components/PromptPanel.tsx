@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Search, Send, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -44,13 +44,18 @@ export function PromptPanel({
 }: PromptPanelProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const handleIncomingFiles = async (files?: FileList | File[]) => {
+    if (files && files.length > 0) {
+      await onAddFiles(files)
+    }
+  }
 
   const handleFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
-    if (files && files.length > 0) {
-      await onAddFiles(files)
-      event.target.value = ""
-    }
+    await handleIncomingFiles(files || undefined)
+    if (event.target) event.target.value = ""
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -68,8 +73,25 @@ export function PromptPanel({
   }
 
   return (
-    <div className="border-t bg-background p-4">
-      <div className="max-w-4xl mx-auto space-y-4">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 pb-4">
+      <div
+        className="pointer-events-auto max-w-5xl w-[92vw] mx-auto border rounded-2xl shadow-lg bg-background/95 backdrop-blur p-4 space-y-4"
+        onDragOver={(e) => {
+          e.preventDefault()
+          setIsDragging(true)
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault()
+          setIsDragging(false)
+        }}
+        onDrop={async (e) => {
+          e.preventDefault()
+          setIsDragging(false)
+          if (e.dataTransfer?.files?.length) {
+            await handleIncomingFiles(e.dataTransfer.files)
+          }
+        }}
+      >
         {/* Hidden File Input */}
         <input
           type="file"
@@ -83,7 +105,12 @@ export function PromptPanel({
         <UploadStrip uploads={uploads} onRemove={onRemoveUpload} />
 
         {/* 集成式输入框 */}
-        <div className="relative rounded-2xl border bg-muted/40 focus-within:bg-background focus-within:ring-2 focus-within:ring-ring/20 transition-all duration-200">
+        <div
+          className={cn(
+            "relative rounded-2xl border bg-muted/40 focus-within:bg-background focus-within:ring-2 focus-within:ring-ring/20 transition-all duration-200",
+            isDragging && "ring-2 ring-primary/60 bg-primary/5"
+          )}
+        >
           <Textarea
             ref={textareaRef}
             value={prompt}

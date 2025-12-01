@@ -38,7 +38,7 @@ export function MessageItem({ message, onDownload }: MessageItemProps) {
         className={cn(
           "rounded-2xl p-4 shadow-sm max-w-[90%] sm:max-w-[85%]",
           isUser
-            ? "bg-primary text-primary-foreground rounded-tr-sm"
+            ? "bg-primary text-white rounded-tr-sm"
             : "bg-card border rounded-tl-sm",
           message.isError ? "bg-destructive/10 border-destructive text-destructive" : "",
         )}
@@ -46,7 +46,7 @@ export function MessageItem({ message, onDownload }: MessageItemProps) {
         {/* 文本内容 + 复制按钮 */}
         {message.text && (
           <div className="relative group/text">
-            <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none">
+            <div className={cn("prose prose-sm prose-neutral dark:prose-invert max-w-none", isUser && "prose-invert")}>
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{

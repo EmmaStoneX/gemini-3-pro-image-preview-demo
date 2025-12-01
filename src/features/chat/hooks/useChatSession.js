@@ -81,6 +81,8 @@ export function useChatSession() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    // 清空已选文件，避免遗留到下一次对话
+    setUploadedImages([]);
     setPrompt('');
     setLoading(true);
 
