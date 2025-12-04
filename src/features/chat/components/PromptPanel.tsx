@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
-import { Search, Send, Plus } from 'lucide-react'
+import { Search, Send, Plus, Settings2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { UploadStrip } from './UploadStrip'
 import { ControlBar } from './ControlBar'
 import type { UploadItem } from '@/features/chat/types'
+import { extractFilesFromDataTransfer } from '../utils/files'
 import { cn } from '@/lib/utils'
 
 type PromptPanelProps = {
@@ -45,6 +46,7 @@ export function PromptPanel({
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [showControls, setShowControls] = useState(false)
 
   const handleIncomingFiles = async (files?: FileList | File[]) => {
     if (files && files.length > 0) {
@@ -65,6 +67,14 @@ export function PromptPanel({
     }
   }
 
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = extractFilesFromDataTransfer(e.clipboardData)
+    if (files.length > 0) {
+      e.preventDefault()
+      await handleIncomingFiles(files)
+    }
+  }
+
   const adjustHeight = () => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto"
@@ -73,9 +83,9 @@ export function PromptPanel({
   }
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 pb-4">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-2 pb-2 md:pb-6">
       <div
-        className="pointer-events-auto max-w-5xl w-[92vw] mx-auto border rounded-2xl shadow-lg bg-background/95 backdrop-blur p-4 space-y-4"
+        className="pointer-events-auto w-full max-w-3xl mx-auto flex flex-col gap-3"
         onDragOver={(e) => {
           e.preventDefault()
           setIsDragging(true)
@@ -102,13 +112,19 @@ export function PromptPanel({
           onChange={handleFiles}
         />
 
-        <UploadStrip uploads={uploads} onRemove={onRemoveUpload} />
+        {/* Upload Strip - Floating above */}
+        {uploads.length > 0 && (
+           <div className="px-1">
+              <UploadStrip uploads={uploads} onRemove={onRemoveUpload} aspectRatio={aspectRatio} />
+           </div>
+        )}
 
-        {/* 集成式输入框 */}
+        {/* Main Input Area */}
         <div
           className={cn(
-            "relative rounded-2xl border bg-muted/40 focus-within:bg-background focus-within:ring-2 focus-within:ring-ring/20 transition-all duration-200",
-            isDragging && "ring-2 ring-primary/60 bg-primary/5"
+            "relative flex flex-col bg-background/80 backdrop-blur-2xl shadow-2xl border border-border/60 rounded-[24px] transition-all duration-200 overflow-hidden ring-1 ring-black/5 dark:ring-white/5",
+            isDragging && "ring-2 ring-primary/60 bg-primary/5",
+            "focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50"
           )}
         >
           <Textarea
@@ -119,37 +135,66 @@ export function PromptPanel({
               adjustHeight()
             }}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder="描述您想生成的图像..."
-            className="min-h-[60px] max-h-[200px] w-full resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 p-4 pb-12 placeholder:text-muted-foreground/50"
+            className="min-h-[48px] max-h-[200px] w-full resize-none border-0 bg-transparent py-3.5 pl-4 pr-4 focus-visible:ring-0 focus-visible:ring-offset-0 text-base shadow-none placeholder:text-muted-foreground/50"
           />
 
-          {/* 底部按钮栏 */}
-          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+           {/* Collapsible Controls inside the input box */}
+          <div className={cn(
+             "overflow-hidden transition-all duration-300 ease-in-out px-2",
+              showControls ? "max-h-40 opacity-100 mb-2" : "max-h-0 opacity-0"
+           )}>
+              <div className="bg-muted/40 rounded-xl p-1.5 mx-1 border border-border/20">
+                 <ControlBar
+                  aspectRatio={aspectRatio}
+                  imageSize={imageSize}
+                  includeThinking={includeThinking}
+                  onAspectChange={onAspectChange}
+                  onSizeChange={onSizeChange}
+                  onToggleThinking={onToggleThinking}
+                  onEdit={onEditLast}
+                  canEdit={canEditLast}
+                  loading={loading}
+                />
+              </div>
+          </div>
+
+          {/* Bottom Toolbar - Flexbox layout */}
+          <div className="flex items-center justify-between p-1.5 pl-3 bg-muted/10 border-t border-border/40">
             <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  "h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground",
-                  uploads.length > 0 && "text-primary bg-primary/10"
+                  "h-8 w-8 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200",
+                  uploads.length > 0 && "text-primary bg-primary/10 hover:bg-primary/20"
                 )}
                 onClick={() => fileInputRef.current?.click()}
                 title="上传参考图"
               >
-                <Plus className="h-5 w-5" />
+                <Plus className="h-4 w-4" />
               </Button>
-              {uploads.length > 0 && (
-                <span className="text-xs text-muted-foreground hidden sm:inline-block">
-                  {uploads.length} 张图片
-                </span>
-              )}
+              
+               <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "h-8 w-8 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200",
+                  showControls && "text-primary bg-primary/10 hover:bg-primary/20"
+                )}
+                onClick={() => setShowControls(!showControls)}
+                title={showControls ? "收起设置" : "展开设置"}
+              >
+                <Settings2 className="h-4 w-4" />
+              </Button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
+                className="h-8 w-8 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200"
                 onClick={() => onSend("search")}
                 disabled={loading}
                 title="联网生成"
@@ -159,33 +204,21 @@ export function PromptPanel({
               <Button
                 onClick={() => onSend("generate")}
                 disabled={loading || (!prompt && uploads.length === 0)}
-                size="sm"
-                className="h-8 px-3 rounded-lg transition-all"
+                size="icon"
+                className={cn(
+                  "h-8 w-8 rounded-full shadow-sm transition-all duration-200 shrink-0 flex items-center justify-center",
+                  loading ? "bg-muted text-muted-foreground" : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                )}
               >
                 {loading ? (
                   <span className="animate-spin text-xs">⏳</span>
                 ) : (
-                  <>
-                    <span className="mr-2 hidden sm:inline">生成</span>
-                    <Send className="h-3.5 w-3.5" />
-                  </>
+                  <Send className="h-4 w-4" />
                 )}
               </Button>
             </div>
           </div>
         </div>
-
-        <ControlBar
-          aspectRatio={aspectRatio}
-          imageSize={imageSize}
-          includeThinking={includeThinking}
-          onAspectChange={onAspectChange}
-          onSizeChange={onSizeChange}
-          onToggleThinking={onToggleThinking}
-          onEdit={onEditLast}
-          canEdit={canEditLast}
-          loading={loading}
-        />
       </div>
     </div>
   )

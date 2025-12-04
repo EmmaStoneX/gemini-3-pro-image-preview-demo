@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { chatApi } from '../api/chatApi';
 import { createSessionId } from '../utils/session';
 import { limitUploads, toUploadItems } from '../utils/files';
+import { apiConfig } from '../utils/apiConfig';
 
 const messageId = () =>
   (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`);
@@ -107,7 +108,7 @@ export function useChatSession() {
           includeThinking,
           sessionId,
         });
-      } else if (mode === 'search') {
+      } else if (mode === 'search' || (mode === 'generate' && apiConfig.getWebSearch())) {
         response = await chatApi.generateWithSearch({
           prompt: prompt.trim(),
           aspectRatio,

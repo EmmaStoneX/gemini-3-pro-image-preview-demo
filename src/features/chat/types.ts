@@ -4,6 +4,9 @@ export type UploadItem = {
   mimeType: string
   base64: string
   dataUrl: string
+  width?: number
+  height?: number
+  aspectRatio?: number
 }
 
 export type ChatRole = "user" | "assistant" | "system"

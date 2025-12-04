@@ -6,6 +6,34 @@ import { ImageLightbox } from '@/components/ImageLightbox'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ChatMessage } from '@/features/chat/types'
+import { getThumbSize } from '../utils/thumb'
+
+const USER_IMAGE_MAX_EDGE = 80
+
+function UploadedThumb({ src, alt }: { src: string; alt: string }) {
+  const [ratio, setRatio] = useState(1)
+  const size = getThumbSize(ratio, USER_IMAGE_MAX_EDGE)
+
+  return (
+    <div
+      className="relative shrink-0 rounded-md border bg-background overflow-hidden flex items-center justify-center"
+      style={size}
+    >
+      <img
+        src={src}
+        alt={alt}
+        className="w-full h-full object-contain"
+        onLoad={(e) => {
+          const { naturalWidth, naturalHeight } = e.currentTarget
+          if (naturalWidth && naturalHeight) {
+            const nextRatio = naturalWidth / naturalHeight
+            if (nextRatio !== ratio) setRatio(nextRatio)
+          }
+        }}
+      />
+    </div>
+  )
+}
 
 type MessageItemProps = {
   message: ChatMessage
@@ -94,7 +122,7 @@ export function MessageItem({ message, onDownload }: MessageItemProps) {
         {message.images && message.images.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-2">
             {message.images.map((img, i) => (
-              <img key={i} src={img} alt="uploaded" className="h-20 w-20 object-cover rounded-md border bg-background" />
+              <UploadedThumb key={i} src={img} alt="uploaded" />
             ))}
           </div>
         )}
