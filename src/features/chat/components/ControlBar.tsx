@@ -3,13 +3,14 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import type { AspectRatio, ImageSize } from "@/features/chat/types"
 
 type ControlBarProps = {
-  aspectRatio: string
-  imageSize: string
+  aspectRatio: AspectRatio
+  imageSize: ImageSize
   includeThinking: boolean
-  onAspectChange: (value: string) => void
-  onSizeChange: (value: string) => void
+  onAspectChange: (value: AspectRatio) => void
+  onSizeChange: (value: ImageSize) => void
   onToggleThinking: (value: boolean) => void
   onEdit: () => void
   canEdit: boolean
@@ -32,7 +33,7 @@ export function ControlBar({
       {/* 宽高比选择 */}
       <div className="flex items-center gap-2">
         <Ratio className="h-4 w-4" />
-        <Select value={aspectRatio} onValueChange={onAspectChange}>
+        <Select value={aspectRatio} onValueChange={(value) => onAspectChange(value as AspectRatio)}>
           <SelectTrigger className="h-8 w-[140px] border-transparent bg-transparent hover:bg-muted/50 focus:ring-0 px-2 shadow-none data-[state=open]:bg-muted">
             <SelectValue />
           </SelectTrigger>
@@ -50,7 +51,7 @@ export function ControlBar({
       {/* 图像大小选择 */}
       <div className="flex items-center gap-2">
         <Monitor className="h-4 w-4" />
-        <Select value={imageSize} onValueChange={onSizeChange}>
+        <Select value={imageSize} onValueChange={(value) => onSizeChange(value as ImageSize)}>
           <SelectTrigger className="h-8 w-[70px] border-transparent bg-transparent hover:bg-muted/50 focus:ring-0 px-2 shadow-none data-[state=open]:bg-muted">
             <SelectValue />
           </SelectTrigger>

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, type HTMLAttributes, type MouseEvent, type ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
+import type { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Download, Copy, Check } from 'lucide-react'
 import { ImageLightbox } from '@/components/ImageLightbox'
@@ -9,6 +10,40 @@ import type { ChatMessage } from '@/features/chat/types'
 import { getThumbSize } from '../utils/thumb'
 
 const USER_IMAGE_MAX_EDGE = 80
+
+const markdownComponents: Components = {
+  a: (props) => <a {...props} target="_blank" rel="noreferrer" />,
+  code(
+    { inline, className, children, ...props }: { inline?: boolean; className?: string; children?: ReactNode } & HTMLAttributes<HTMLElement>,
+  ) {
+    if (inline) {
+      return (
+        <code className={cn("rounded bg-muted px-1 py-0.5 text-xs font-medium", className)} {...props}>
+          {children}
+        </code>
+      )
+    }
+
+    return (
+      <pre className="overflow-x-auto rounded-lg bg-muted px-3 py-2 text-sm">
+        <code className={className} {...props}>
+          {children}
+        </code>
+      </pre>
+    )
+  },
+}
+
+function getDisplayParts(message: ChatMessage, includeThinking: boolean) {
+  if (message.parts && message.parts.length > 0) {
+    const nonThoughtParts = message.parts.filter((p) => !p.thought)
+    const thoughtParts = message.parts.filter((p) => p.thought)
+    const combined = includeThinking ? message.parts : nonThoughtParts
+    return combined
+  }
+  if (message.text) return [{ text: message.text }]
+  return []
+}
 
 function UploadedThumb({ src, alt }: { src: string; alt: string }) {
   const [ratio, setRatio] = useState(1)
@@ -37,21 +72,29 @@ function UploadedThumb({ src, alt }: { src: string; alt: string }) {
 
 type MessageItemProps = {
   message: ChatMessage
+  includeThinking: boolean
   onDownload: (base64: string) => void
 }
 
-export function MessageItem({ message, onDownload }: MessageItemProps) {
+export function MessageItem({ message, includeThinking, onDownload }: MessageItemProps) {
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
   const [lightboxOpen, setLightboxOpen] = useState(false)
 
   const handleCopy = () => {
-    if (message.text) {
-      navigator.clipboard.writeText(message.text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
+    const displayParts = getDisplayParts(message, includeThinking)
+    const hasStructured = Boolean(message.parts?.length)
+    const copyText = hasStructured
+      ? displayParts.map((p) => p.text).filter(Boolean).join('\n\n')
+      : message.text
+    if (!copyText) return
+
+    navigator.clipboard.writeText(copyText)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
+
+  const displayParts = getDisplayParts(message, includeThinking)
 
   return (
     <div className={cn("flex flex-col gap-1 w-full max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300", isUser ? "items-end" : "items-start")}>
@@ -72,39 +115,22 @@ export function MessageItem({ message, onDownload }: MessageItemProps) {
         )}
       >
         {/* 文本内容 + 复制按钮 */}
-        {message.text && (
+        {displayParts.length > 0 && (
           <div className="relative group/text">
-            <div className={cn("prose prose-sm prose-neutral dark:prose-invert max-w-none", isUser && "prose-invert")}>
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  a: (props) => (
-                    <a {...props} target="_blank" rel="noreferrer" />
-                  ),
-                  code({ inline, className, children, ...props }) {
-                    if (inline) {
-                      return (
-                        <code
-                          className={cn("rounded bg-muted px-1 py-0.5 text-xs font-medium", className)}
-                          {...props}
-                        >
-                          {children}
-                        </code>
-                      )
-                    }
-
-                    return (
-                      <pre className="overflow-x-auto rounded-lg bg-muted px-3 py-2 text-sm">
-                        <code className={className} {...props}>
-                          {children}
-                        </code>
-                      </pre>
-                    )
-                  },
-                }}
-              >
-                {message.text}
-              </ReactMarkdown>
+            <div className="space-y-3">
+              {displayParts.map((part, idx) => (
+                <div
+                  key={idx}
+                  className={cn(
+                    "prose prose-sm prose-neutral dark:prose-invert max-w-none",
+                    isUser && "prose-invert"
+                  )}
+                >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                    {part.text}
+                  </ReactMarkdown>
+                </div>
+              ))}
             </div>
             {!isUser && (
               <button
@@ -163,7 +189,7 @@ export function MessageItem({ message, onDownload }: MessageItemProps) {
                   size="icon"
                   variant="secondary"
                   className="h-9 w-9 shadow-lg backdrop-blur-sm bg-background/80 hover:bg-background"
-                  onClick={(e) => {
+                  onClick={(e: MouseEvent<HTMLButtonElement>) => {
                     e.stopPropagation()
                     onDownload(message.imageData!)
                   }}

@@ -21,7 +21,11 @@ function App() {
 
       <main className="flex flex-1 overflow-hidden">
         <div className="flex-1 flex flex-col min-w-0 relative pb-36 md:pb-48">
-          <MessageList messages={state.messages} onDownload={actions.downloadImage} />
+          <MessageList
+            messages={state.messages}
+            includeThinking={state.includeThinking}
+            onDownload={actions.downloadImage}
+          />
 
           {/* 加载覆盖层 */}
           <LoadingOverlay show={state.loading} />

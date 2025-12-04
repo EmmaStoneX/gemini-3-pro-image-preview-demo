@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { type MouseEvent, useEffect, useState } from 'react'
 import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog'
 import { X, ZoomIn, ZoomOut } from 'lucide-react'
 
@@ -21,7 +21,13 @@ export function ImageLightbox({ src, open, onOpenChange }: ImageLightboxProps) {
 
   const handleZoomIn = () => setZoom((z) => clampZoom(z + 25))
   const handleZoomOut = () => setZoom((z) => clampZoom(z - 25))
-  const handleImageClick = () => handleZoomIn()
+  const handleImageClick = (event: MouseEvent<HTMLImageElement>) => {
+    event.stopPropagation()
+    handleZoomIn()
+  }
+  const handleContentClick = (event: MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation()
+  }
 
   const handleClose = () => onOpenChange(false)
 
@@ -33,7 +39,11 @@ export function ImageLightbox({ src, open, onOpenChange }: ImageLightboxProps) {
           onClick={handleClose}
         />
         {open && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            onClick={handleClose}
+            role="presentation"
+          >
             <button
               aria-label="关闭预览"
               className="absolute right-6 top-6 rounded-full bg-black/70 p-2 text-white transition hover:bg-black/60"
@@ -42,7 +52,7 @@ export function ImageLightbox({ src, open, onOpenChange }: ImageLightboxProps) {
               <X className="h-5 w-5" />
             </button>
 
-            <div className="relative max-h-[85vh] max-w-[90vw]">
+            <div className="relative max-h-[85vh] max-w-[90vw]" onClick={handleContentClick}>
               <img
                 src={src}
                 alt="预览图片"
@@ -52,7 +62,10 @@ export function ImageLightbox({ src, open, onOpenChange }: ImageLightboxProps) {
               />
             </div>
 
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 transform">
+            <div
+              className="absolute bottom-10 left-1/2 -translate-x-1/2 transform"
+              onClick={handleContentClick}
+            >
               <div className="flex items-center gap-3 rounded-full bg-black/70 px-4 py-2 text-white shadow-lg">
                 <button
                   className="rounded-full p-2 transition hover:bg-white/10 disabled:opacity-40"

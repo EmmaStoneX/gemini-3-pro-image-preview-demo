@@ -5,10 +5,11 @@ import type { ChatMessage } from '@/features/chat/types'
 
 type MessageListProps = {
   messages: ChatMessage[]
+  includeThinking: boolean
   onDownload: (base64: string) => void
 }
 
-export function MessageList({ messages, onDownload }: MessageListProps) {
+export function MessageList({ messages, includeThinking, onDownload }: MessageListProps) {
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -37,7 +38,12 @@ export function MessageList({ messages, onDownload }: MessageListProps) {
       ) : (
         <>
           {messages.map((message) => (
-            <MessageItem key={message.id} message={message} onDownload={onDownload} />
+            <MessageItem
+              key={message.id}
+              message={message}
+              includeThinking={includeThinking}
+              onDownload={onDownload}
+            />
           ))}
           <div ref={endRef} />
         </>

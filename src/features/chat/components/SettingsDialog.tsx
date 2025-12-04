@@ -12,7 +12,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiConfig } from '../utils/apiConfig';
 
-export function SettingsDialog({ open, onOpenChange }) {
+type SettingsDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [url, setUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [error, setError] = useState('');

@@ -1,26 +1,26 @@
 import { useRef, useState } from 'react'
-import { Search, Send, Plus, Settings2 } from 'lucide-react'
+import { Search, Send, Plus, Settings2, Edit } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { UploadStrip } from './UploadStrip'
 import { ControlBar } from './ControlBar'
-import type { UploadItem } from '@/features/chat/types'
+import type { UploadItem, ChatMode, AspectRatio, ImageSize } from '@/features/chat/types'
 import { extractFilesFromDataTransfer } from '../utils/files'
 import { cn } from '@/lib/utils'
 
 type PromptPanelProps = {
   prompt: string
   onPromptChange: (value: string) => void
-  onSend: (mode?: "generate" | "edit" | "search") => void
+  onSend: (mode?: ChatMode) => void
   loading: boolean
   uploads: UploadItem[]
   onAddFiles: (files?: FileList | File[] | null) => Promise<void>
   onRemoveUpload: (id: string) => void
-  aspectRatio: string
-  imageSize: string
+  aspectRatio: AspectRatio
+  imageSize: ImageSize
   includeThinking: boolean
-  onAspectChange: (value: string) => void
-  onSizeChange: (value: string) => void
+  onAspectChange: (value: AspectRatio) => void
+  onSizeChange: (value: ImageSize) => void
   onToggleThinking: (value: boolean) => void
   canEditLast: boolean
   onEditLast: () => void
@@ -191,6 +191,16 @@ export function PromptPanel({
             </div>
 
             <div className="flex items-center gap-1.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200"
+                onClick={() => onEditLast()}
+                disabled={loading || !canEditLast}
+                title="编辑上一张"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
