@@ -1,4 +1,5 @@
 import { apiConfig } from '../utils/apiConfig';
+import { DEFAULT_REQUEST_TIMEOUT_MS, requestWithMode } from './request';
 import type {
   GeminiInlineDataInput,
   GeminiMessage,
@@ -191,19 +192,24 @@ const parseResponse = async (response: Response): Promise<OpenAIResponse> => {
 
 const requestOpenAI = async (payload: OpenAIRequestPayload, apiKey: string, baseUrl: string): Promise<OpenAIResponse> => {
   try {
-    const response = await fetch(`${normalizeBaseUrl(baseUrl)}${MODEL_PATH}`, {
+    const response = await requestWithMode({
+      url: `${normalizeBaseUrl(baseUrl)}${MODEL_PATH}`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      body: JSON.stringify(payload),
+      body: payload,
+      timeoutMs: DEFAULT_REQUEST_TIMEOUT_MS,
     });
 
     return parseResponse(response);
   } catch (error) {
     if (error instanceof OpenAIClientError) {
       throw error;
+    }
+    if (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError') {
+      throw new OpenAIClientError('请求超时（已等待 20 分钟）', { details: error });
     }
     throw new OpenAIClientError('网络请求失败', { details: error });
   }

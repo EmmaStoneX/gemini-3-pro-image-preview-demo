@@ -32,15 +32,23 @@ function App() {
       />
 
       <main className="flex flex-1 overflow-hidden">
-        <div className="flex-1 flex flex-col min-w-0 relative pb-36 md:pb-48">
+        <div className="flex-1 flex flex-col min-w-0 relative pb-[calc(var(--prompt-panel-height,160px)+16px)]">
           <MessageList
             messages={state.messages}
             includeThinking={state.includeThinking}
             onDownload={actions.downloadImage}
+            onDeleteMessage={actions.deleteMessage}
+            hasSavedConversation={state.hasSavedConversation}
+            savedConversationAt={state.savedConversationAt}
+            onRestoreSavedConversation={actions.restoreSavedConversation}
+            onClearSavedConversation={actions.clearSavedConversation}
           />
 
           {/* 加载覆盖层 */}
-          <LoadingOverlay show={state.loading} />
+          <LoadingOverlay
+            show={state.loading}
+            imageSize={apiConfig.getType() === 'openai' ? '1K' : state.imageSize}
+          />
         </div>
       </main>
 
@@ -56,10 +64,12 @@ function App() {
         imageSize={state.imageSize}
         model={model}
         includeThinking={state.includeThinking}
+        forceImageGuidance={state.forceImageGuidance}
         onAspectChange={actions.setAspectRatio}
         onSizeChange={actions.setImageSize}
         onModelChange={handleModelChange}
         onToggleThinking={actions.setIncludeThinking}
+        onToggleForceImageGuidance={actions.setForceImageGuidance}
         canEditLast={!!state.lastImageData}
         onEditLast={() => actions.sendPrompt('edit')}
       />

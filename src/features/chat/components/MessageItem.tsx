@@ -2,7 +2,7 @@ import { useState, type HTMLAttributes, type MouseEvent, type ReactNode } from '
 import ReactMarkdown from 'react-markdown'
 import type { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Download, Copy, Check } from 'lucide-react'
+import { Download, Copy, Check, Trash2 } from 'lucide-react'
 import { ImageLightbox } from '@/components/ImageLightbox'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -37,12 +37,22 @@ const markdownComponents: Components = {
 function getDisplayParts(message: ChatMessage, includeThinking: boolean) {
   if (message.parts && message.parts.length > 0) {
     const nonThoughtParts = message.parts.filter((p) => !p.thought)
-    const thoughtParts = message.parts.filter((p) => p.thought)
     const combined = includeThinking ? message.parts : nonThoughtParts
     return combined
   }
   if (message.text) return [{ text: message.text }]
   return []
+}
+
+function buildUserMarkdown(message: ChatMessage): string {
+  const text = message.text?.trimEnd() || ''
+  const images = (message.images || [])
+    .filter(Boolean)
+    .map((src, idx) => `![参考图 ${idx + 1}](${src})`)
+    .join('\n')
+
+  if (text && images) return `${text}\n\n${images}`
+  return text || images
 }
 
 function UploadedThumb({ src, alt }: { src: string; alt: string }) {
@@ -74,25 +84,33 @@ type MessageItemProps = {
   message: ChatMessage
   includeThinking: boolean
   onDownload: (base64: string) => void
+  onDelete: (id: string) => void
 }
 
-export function MessageItem({ message, includeThinking, onDownload }: MessageItemProps) {
+export function MessageItem({ message, includeThinking, onDownload, onDelete }: MessageItemProps) {
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
   const [lightboxOpen, setLightboxOpen] = useState(false)
+  const canCopy = message.role !== 'system'
 
   const handleCopy = () => {
-    const displayParts = getDisplayParts(message, includeThinking)
-    const hasStructured = Boolean(message.parts?.length)
-    const copyText = hasStructured
-      ? displayParts.map((p) => p.text).filter(Boolean).join('\n\n')
-      : message.text
+    const copyText = isUser
+      ? buildUserMarkdown(message)
+      : (() => {
+          const displayParts = getDisplayParts(message, includeThinking)
+          const hasStructured = Boolean(message.parts?.length)
+          return hasStructured
+            ? displayParts.map((p) => p.text).filter(Boolean).join('\n\n')
+            : message.text
+        })()
     if (!copyText) return
 
     navigator.clipboard.writeText(copyText)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
+
+  const handleDelete = () => onDelete(message.id)
 
   const displayParts = getDisplayParts(message, includeThinking)
 
@@ -107,13 +125,51 @@ export function MessageItem({ message, includeThinking, onDownload }: MessageIte
       {/* 消息气泡 */}
       <div
         className={cn(
-          "rounded-2xl p-4 shadow-sm max-w-[90%] sm:max-w-[85%]",
+          "relative group/bubble rounded-2xl p-4 shadow-sm max-w-[90%] sm:max-w-[85%]",
           isUser
             ? "bg-primary text-white rounded-tr-sm"
             : "bg-card border rounded-tl-sm",
           message.isError ? "bg-destructive/10 border-destructive text-destructive" : "",
         )}
       >
+        {/* 气泡操作：复制 / 删除 */}
+        <div
+          className={cn(
+            "absolute -right-2 -top-2 flex items-center gap-1 rounded-full border px-1 py-1 shadow-sm backdrop-blur",
+            "bg-background/90 ring-1 ring-black/5 dark:ring-white/5",
+            "opacity-0 translate-y-0.5 group-hover/bubble:opacity-100 group-hover/bubble:translate-y-0 transition-all",
+          )}
+        >
+          {canCopy && (
+            <button
+              type="button"
+              onClick={handleCopy}
+              className={cn(
+                "h-7 w-7 inline-flex items-center justify-center rounded-full transition-colors",
+                "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+              )}
+              aria-label={isUser ? "复制 Markdown" : "复制文本"}
+              title={isUser ? "复制 Markdown" : "复制文本"}
+            >
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleDelete}
+            className={cn(
+              "h-7 w-7 inline-flex items-center justify-center rounded-full transition-colors",
+              message.isError
+                ? "text-destructive hover:bg-destructive/10"
+                : "text-muted-foreground hover:text-destructive hover:bg-destructive/10",
+            )}
+            aria-label="删除消息"
+            title="删除消息"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
         {/* 文本内容 + 复制按钮 */}
         {displayParts.length > 0 && (
           <div className="relative group/text">
@@ -132,15 +188,6 @@ export function MessageItem({ message, includeThinking, onDownload }: MessageIte
                 </div>
               ))}
             </div>
-            {!isUser && (
-              <button
-                onClick={handleCopy}
-                className="absolute -right-2 -top-2 opacity-0 group-hover/text:opacity-100 p-1 text-muted-foreground hover:text-foreground transition-opacity rounded"
-                aria-label="复制文本"
-              >
-                {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-              </button>
-            )}
           </div>
         )}
 

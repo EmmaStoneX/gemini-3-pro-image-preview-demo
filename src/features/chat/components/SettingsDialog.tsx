@@ -17,7 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { apiConfig, type ApiType, type ModelName } from '../utils/apiConfig';
+import { apiConfig, type ApiType, type ModelName, type RequestMode } from '../utils/apiConfig';
+import { allowedProxyBaseUrls, isAllowedProxyTargetUrl } from '@/config/proxyAllowlist';
 
 type SettingsDialogProps = {
   open: boolean;
@@ -29,6 +30,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [apiKey, setApiKey] = useState('');
   const [apiType, setApiType] = useState<ApiType>('gemini');
   const [model, setModel] = useState<ModelName>(apiConfig.getModel());
+  const [requestMode, setRequestMode] = useState<RequestMode>(apiConfig.getRequestMode());
+  const [pendingRequestMode, setPendingRequestMode] = useState<RequestMode | null>(null);
+  const [riskDialogOpen, setRiskDialogOpen] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -37,6 +41,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       setApiKey(apiConfig.getKey());
       setApiType(apiConfig.getType());
       setModel(apiConfig.getModel());
+      setRequestMode(apiConfig.getRequestMode());
+      setPendingRequestMode(null);
+      setRiskDialogOpen(false);
       setError('');
     }
   }, [open]);
@@ -54,6 +61,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     apiConfig.setKey(apiKey.trim());
     apiConfig.setType(apiType);
     apiConfig.setModel(model);
+    apiConfig.setRequestMode(requestMode);
     onOpenChange(false);
   };
 
@@ -63,6 +71,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     setApiKey('');
     setApiType('gemini');
     setModel(apiConfig.getModel());
+    setRequestMode(apiConfig.getRequestMode());
+    setPendingRequestMode(null);
+    setRiskDialogOpen(false);
     setError('');
   };
 
@@ -71,6 +82,42 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       return `${url || '{url}'}/v1beta/models/${model}:generateContent`;
     }
     return `${url || '{url}'}/v1/chat/completions`;
+  };
+
+  const displayRequestMode = pendingRequestMode ?? requestMode;
+  const serverUrlAllowed = url.trim().length === 0 ? false : isAllowedProxyTargetUrl(url.trim());
+
+  const requestModeDescription =
+    displayRequestMode === 'server'
+      ? '由本服务端代您转发请求，可绕过浏览器 CORS，但 Key 会随请求发给服务端；且仅允许白名单域名，详见 proxy.allowlist.json。'
+      : '浏览器直接请求 API，可能遇到 CORS，局域网/内网分享时尤为常见。';
+
+  const handleRequestModeChange = (next: RequestMode) => {
+    if (next === requestMode) return;
+
+    if (next === 'server') {
+      setPendingRequestMode('server');
+      setRiskDialogOpen(true);
+      return;
+    }
+
+    setPendingRequestMode(null);
+    setRequestMode('client');
+    apiConfig.setRequestMode('client');
+  };
+
+  const confirmServerMode = () => {
+    setRiskDialogOpen(false);
+    setPendingRequestMode(null);
+    setRequestMode('server');
+    apiConfig.setRequestMode('server');
+  };
+
+  const cancelServerMode = () => {
+    setRiskDialogOpen(false);
+    setPendingRequestMode(null);
+    setRequestMode('client');
+    apiConfig.setRequestMode('client');
   };
 
   return (
@@ -113,9 +160,29 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="https://www.packyapi.com"
                 />
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {allowedProxyBaseUrls.map((baseUrl) => (
+                    <Button
+                      key={baseUrl}
+                      type="button"
+                      size="sm"
+                      variant={url.trim() === baseUrl ? 'secondary' : 'outline'}
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setUrl(baseUrl)}
+                      title={`使用 ${baseUrl}`}
+                    >
+                      {baseUrl.replace(/^https:\/\//, '')}
+                    </Button>
+                  ))}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   请求地址：{getApiPathHint()}
                 </p>
+                {displayRequestMode === 'server' && url.trim() && !serverUrlAllowed && (
+                  <p className="text-xs text-destructive">
+                    当前 URL 不在服务端转发白名单中（请改用上方快捷选项，或修改 proxy.allowlist.json 后重新部署）。
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="api-key">API Key</Label>
@@ -131,6 +198,20 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     ? 'Key 将通过 x-goog-api-key 头部发送'
                     : 'Key 将通过 Authorization: Bearer 头部发送'}
                 </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="request-mode">请求方式</Label>
+                <Select value={displayRequestMode} onValueChange={(value: RequestMode) => handleRequestModeChange(value)}>
+                  <SelectTrigger id="request-mode">
+                    <SelectValue placeholder="选择请求方式" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="client">客户端直连</SelectItem>
+                    <SelectItem value="server">服务端转发</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{requestModeDescription}</p>
               </div>
             </div>
           </div>
@@ -149,6 +230,42 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* 切换到服务端转发的风险提示 */}
+      <Dialog
+        open={riskDialogOpen}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) cancelServerMode();
+        }}
+      >
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>切换到服务端转发</DialogTitle>
+            <DialogDescription>
+              该模式可解决浏览器直连的 CORS/跨域问题，但存在 Key 传输风险。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p>
+              服务端<strong>不会保存</strong>您的 Key，但为了代您发起请求转发，Key <strong>不可避免</strong>会在网络中传输到服务端。
+            </p>
+            <ul className="list-disc pl-5 text-xs text-muted-foreground space-y-1">
+              <li>不要在不受信任的网络环境中分享本页面地址，尤其是局域网/公网转发。</li>
+              <li>建议使用低余额/临时 Key 进行测试。</li>
+              <li>如需最高安全性，请使用客户端直连并确保目标 API 支持 CORS。</li>
+              <li>服务端转发仅允许白名单域名，可在 proxy.allowlist.json 或环境变量中调整。</li>
+            </ul>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={cancelServerMode}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={confirmServerMode}>
+              确定，知晓风险
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

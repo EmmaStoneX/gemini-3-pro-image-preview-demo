@@ -1,15 +1,30 @@
 import { useEffect, useRef } from 'react'
 import { Image as ImageIcon, Sparkles } from 'lucide-react'
 import { MessageItem } from './MessageItem'
+import { Button } from '@/components/ui/button'
 import type { ChatMessage } from '@/features/chat/types'
 
 type MessageListProps = {
   messages: ChatMessage[]
   includeThinking: boolean
   onDownload: (base64: string) => void
+  onDeleteMessage: (id: string) => void
+  hasSavedConversation: boolean
+  savedConversationAt: string | null
+  onRestoreSavedConversation: () => void
+  onClearSavedConversation: () => void
 }
 
-export function MessageList({ messages, includeThinking, onDownload }: MessageListProps) {
+export function MessageList({
+  messages,
+  includeThinking,
+  onDownload,
+  onDeleteMessage,
+  hasSavedConversation,
+  savedConversationAt,
+  onRestoreSavedConversation,
+  onClearSavedConversation,
+}: MessageListProps) {
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -33,6 +48,25 @@ export function MessageList({ messages, includeThinking, onDownload }: MessageLi
               <h3 className="font-semibold text-lg">开始您的创作之旅</h3>
               <p className="text-sm text-muted-foreground">描述您的想法，让 Gemini 为您生成精美图像</p>
             </div>
+
+            {hasSavedConversation && (
+              <div className="pt-2 space-y-3">
+                <div className="rounded-xl border bg-muted/30 px-4 py-3 text-left">
+                  <p className="text-sm font-medium">发现上次对话</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    保存时间：{savedConversationAt ? new Date(savedConversationAt).toLocaleString() : '未知'}
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <Button size="sm" onClick={onRestoreSavedConversation}>
+                    快速加载
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={onClearSavedConversation}>
+                    删除记录
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -43,6 +77,7 @@ export function MessageList({ messages, includeThinking, onDownload }: MessageLi
               message={message}
               includeThinking={includeThinking}
               onDownload={onDownload}
+              onDelete={onDeleteMessage}
             />
           ))}
           <div ref={endRef} />

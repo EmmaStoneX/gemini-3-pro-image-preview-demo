@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Search, Send, Plus, Settings2, Edit } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -21,10 +21,12 @@ type PromptPanelProps = {
   imageSize: ImageSize
   model: ModelName
   includeThinking: boolean
+  forceImageGuidance: boolean
   onAspectChange: (value: AspectRatio) => void
   onSizeChange: (value: ImageSize) => void
   onModelChange: (model: ModelName) => void
   onToggleThinking: (value: boolean) => void
+  onToggleForceImageGuidance: (value: boolean) => void
   canEditLast: boolean
   onEditLast: () => void
 }
@@ -41,13 +43,16 @@ export function PromptPanel({
   imageSize,
   model,
   includeThinking,
+  forceImageGuidance,
   onAspectChange,
   onSizeChange,
   onModelChange,
   onToggleThinking,
+  onToggleForceImageGuidance,
   canEditLast,
   onEditLast,
 }: PromptPanelProps) {
+  const panelRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -88,8 +93,41 @@ export function PromptPanel({
     }
   }
 
+  useEffect(() => {
+    const el = panelRef.current
+    if (!el) return
+    if (typeof window === 'undefined') return
+
+    const update = () => {
+      const height = Math.ceil(el.getBoundingClientRect().height)
+      document.documentElement.style.setProperty('--prompt-panel-height', `${height}px`)
+    }
+
+    update()
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', update)
+      return () => window.removeEventListener('resize', update)
+    }
+
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    window.addEventListener('resize', update)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', update)
+    }
+  }, [])
+
+  useEffect(() => {
+    // 提交后 prompt 可能被清空，此时需要把高度还原
+    if (!textareaRef.current) return
+    textareaRef.current.style.height = "auto"
+    if (prompt) adjustHeight()
+  }, [prompt])
+
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-2 pb-2 md:pb-6">
+    <div ref={panelRef} className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-2 pb-2 md:pb-6">
       <div
         className="pointer-events-auto w-full max-w-3xl mx-auto flex flex-col gap-3"
         onDragOver={(e) => {
@@ -155,12 +193,14 @@ export function PromptPanel({
                  <ControlBar
                  aspectRatio={aspectRatio}
                  imageSize={imageSize}
-                  model={model}
+                 model={model}
                   includeThinking={includeThinking}
+                  forceImageGuidance={forceImageGuidance}
                   onAspectChange={onAspectChange}
                   onSizeChange={onSizeChange}
                   onModelChange={onModelChange}
                   onToggleThinking={onToggleThinking}
+                  onToggleForceImageGuidance={onToggleForceImageGuidance}
                   onEdit={onEditLast}
                   canEdit={canEditLast}
                   loading={loading}

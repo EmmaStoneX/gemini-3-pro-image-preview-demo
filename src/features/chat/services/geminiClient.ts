@@ -1,4 +1,5 @@
 import { apiConfig } from '../utils/apiConfig';
+import { DEFAULT_REQUEST_TIMEOUT_MS, requestWithMode } from './request';
 
 import type {
   GeminiContentPart,
@@ -176,19 +177,24 @@ const parseResponse = async (response: Response): Promise<GeminiResponse> => {
 
 const requestGemini = async (payload: GeminiRequestPayload, apiKey: string, baseUrl: string): Promise<GeminiResponse> => {
   try {
-    const response = await fetch(`${normalizeBaseUrl(baseUrl)}${MODEL_PATH}`, {
+    const response = await requestWithMode({
+      url: `${normalizeBaseUrl(baseUrl)}${MODEL_PATH}`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-goog-api-key': apiKey,
       },
-      body: JSON.stringify(payload),
+      body: payload,
+      timeoutMs: DEFAULT_REQUEST_TIMEOUT_MS,
     });
 
     return parseResponse(response);
   } catch (error) {
     if (error instanceof GeminiClientError) {
       throw error;
+    }
+    if (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError') {
+      throw new GeminiClientError('请求超时（已等待 20 分钟）', { details: error });
     }
     throw new GeminiClientError('网络请求失败', { details: error });
   }

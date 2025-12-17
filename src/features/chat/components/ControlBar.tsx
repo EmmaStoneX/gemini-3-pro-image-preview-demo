@@ -1,4 +1,4 @@
-import { Edit, Monitor, Ratio, Brain, Bot } from "lucide-react"
+import { Edit, Monitor, Ratio, Brain, Bot, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -11,10 +11,12 @@ type ControlBarProps = {
   imageSize: ImageSize
   model: ModelName
   includeThinking: boolean
+  forceImageGuidance: boolean
   onAspectChange: (value: AspectRatio) => void
   onSizeChange: (value: ImageSize) => void
   onModelChange: (model: ModelName) => void
   onToggleThinking: (value: boolean) => void
+  onToggleForceImageGuidance: (value: boolean) => void
   onEdit: () => void
   canEdit: boolean
   loading: boolean
@@ -25,10 +27,12 @@ export function ControlBar({
   imageSize,
   model,
   includeThinking,
+  forceImageGuidance,
   onAspectChange,
   onSizeChange,
   onModelChange,
   onToggleThinking,
+  onToggleForceImageGuidance,
   onEdit,
   canEdit,
   loading,
@@ -102,6 +106,23 @@ export function ControlBar({
             id="thinking"
             checked={includeThinking}
             onCheckedChange={onToggleThinking}
+            className="scale-75 origin-left"
+          />
+        </div>
+      </div>
+
+      {/* 强制出图引导开关 */}
+      <div className="flex items-center gap-2">
+        <Sparkles className="h-4 w-4" />
+        <div
+          className="flex items-center gap-2 cursor-pointer"
+          onClick={() => onToggleForceImageGuidance(!forceImageGuidance)}
+        >
+          <span className="text-xs">强制出图引导</span>
+          <Switch
+            id="force-image-guidance"
+            checked={forceImageGuidance}
+            onCheckedChange={onToggleForceImageGuidance}
             className="scale-75 origin-left"
           />
         </div>

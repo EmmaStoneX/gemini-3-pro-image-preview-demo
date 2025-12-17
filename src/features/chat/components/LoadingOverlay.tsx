@@ -1,11 +1,19 @@
 import { Loader2 } from "lucide-react"
+import type { ImageSize } from "@/features/chat/types"
 
 type LoadingOverlayProps = {
   show: boolean
   message?: string
+  imageSize?: ImageSize
 }
 
-export function LoadingOverlay({ show, message = "正在生成图像，请稍候…" }: LoadingOverlayProps) {
+const buildEstimate = (imageSize?: ImageSize) => {
+  if (!imageSize) return "预计耗时：1K≈1分钟，2K≈5分钟，4K≈10分钟；最长可等待 20 分钟，请耐心等待"
+  const map: Record<ImageSize, string> = { "1K": "≈1分钟", "2K": "≈5分钟", "4K": "≈10分钟" }
+  return `预计耗时：${imageSize}${map[imageSize]}（参考值）· 最长可等待 20 分钟，请耐心等待`
+}
+
+export function LoadingOverlay({ show, message = "正在生成图像，请稍候…", imageSize }: LoadingOverlayProps) {
   // 不显示时不渲染DOM
   if (!show) return null
 
@@ -18,7 +26,7 @@ export function LoadingOverlay({ show, message = "正在生成图像，请稍候
         <Loader2 className="h-5 w-5 animate-spin text-primary" />
         <div className="flex flex-col">
           <span className="font-medium text-sm">{message}</span>
-          <span className="text-xs text-muted-foreground">通常 10 秒完成，如有参数调整可能会更久</span>
+          <span className="text-xs text-muted-foreground">{buildEstimate(imageSize)}</span>
         </div>
       </div>
     </div>
