@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ChatHeader } from '@/features/chat/components/ChatHeader'
 import { MessageList } from '@/features/chat/components/MessageList'
 import { PromptPanel } from '@/features/chat/components/PromptPanel'
@@ -17,18 +17,19 @@ function App() {
     apiConfig.setModel(value)
   }
 
-  useEffect(() => {
-    if (!settingsOpen) {
+  const handleSettingsOpenChange = (open: boolean) => {
+    setSettingsOpen(open)
+    if (!open) {
       setModel(apiConfig.getModel())
     }
-  }, [settingsOpen])
+  }
 
   return (
     <div className="flex h-screen w-full flex-col bg-background text-foreground">
       <ChatHeader
         loading={state.loading}
         onReset={actions.reset}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={() => handleSettingsOpenChange(true)}
       />
 
       <main className="flex flex-1 overflow-hidden">
@@ -74,7 +75,7 @@ function App() {
         onEditLast={() => actions.sendPrompt('edit')}
       />
 
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsDialog open={settingsOpen} onOpenChange={handleSettingsOpenChange} />
     </div>
   )
 }

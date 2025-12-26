@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { MODEL_LIST, type ModelName, apiConfig } from "@/features/chat/utils/apiConfig"
+import { type ModelName, apiConfig } from "@/features/chat/utils/apiConfig"
 import type { AspectRatio, ImageSize } from "@/features/chat/types"
 
 type ControlBarProps = {
@@ -39,22 +39,33 @@ export function ControlBar({
 }: ControlBarProps) {
   const apiType = apiConfig.getType()
 
+  const openAIModelList = apiType === "openai" ? apiConfig.getOpenAIModelList() : []
+
   return (
     <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground px-1">
-      {/* 模型选择（OpenAI 模式） */}
+      {/* 模型选择（OpenAI 兼容模式）- 下拉列表 */}
       {apiType === "openai" && (
         <div className="flex items-center gap-2">
           <Bot className="h-4 w-4" />
-          <Select value={model} onValueChange={(value) => onModelChange(value as ModelName)}>
+          <Select
+            value={openAIModelList.includes(model) ? model : undefined}
+            onValueChange={(value) => onModelChange(value as ModelName)}
+          >
             <SelectTrigger className="h-8 w-[240px] border-transparent bg-transparent hover:bg-muted/50 focus:ring-0 px-2 shadow-none data-[state=open]:bg-muted">
-              <SelectValue />
+              <SelectValue placeholder={openAIModelList.length === 0 ? "暂无可用模型" : "选择模型"} />
             </SelectTrigger>
             <SelectContent>
-              {MODEL_LIST.map((item) => (
-                <SelectItem key={item} value={item}>
-                  {item}
+              {openAIModelList.length === 0 ? (
+                <SelectItem value="__empty_openai_model_list__" disabled>
+                  请先在设置中添加模型
                 </SelectItem>
-              ))}
+              ) : (
+                openAIModelList.map((item) => (
+                  <SelectItem key={item} value={item}>
+                    {item}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
         </div>

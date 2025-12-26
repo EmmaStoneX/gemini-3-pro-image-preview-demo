@@ -11,7 +11,7 @@ import type {
   GeminiResult,
 } from '@/types/gemini';
 
-const MODEL_PATH = '/v1beta/models/gemini-3-pro-image-preview:generateContent';
+const buildModelPath = (model: string): string => `/v1beta/models/${model}:generateContent`;
 
 export class GeminiClientError extends Error {
   status?: number;
@@ -40,6 +40,11 @@ type GeminiCallParams = {
 };
 
 const normalizeBaseUrl = (url: string) => url.replace(/\/$/, '');
+
+const getModelPath = (): string => {
+  const model = apiConfig.getGeminiModel().trim();
+  return buildModelPath(model || 'gemini-3-pro-image-preview');
+};
 
 const cloneHistory = (history: GeminiMessage[] = []): GeminiMessage[] =>
   history.map((message) => ({
@@ -178,7 +183,7 @@ const parseResponse = async (response: Response): Promise<GeminiResponse> => {
 const requestGemini = async (payload: GeminiRequestPayload, apiKey: string, baseUrl: string): Promise<GeminiResponse> => {
   try {
     const response = await requestWithMode({
-      url: `${normalizeBaseUrl(baseUrl)}${MODEL_PATH}`,
+      url: `${normalizeBaseUrl(baseUrl)}${getModelPath()}`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
