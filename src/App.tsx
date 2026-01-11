@@ -9,7 +9,7 @@ import { apiConfig, type ModelName } from '@/features/chat/utils/apiConfig'
 
 function App() {
   const { state, actions } = useChatSession()
-  const [settingsOpen, setSettingsOpen] = useState(!apiConfig.isConfigured())
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [model, setModel] = useState<ModelName>(apiConfig.getModel())
 
   const handleModelChange = (value: ModelName) => {
