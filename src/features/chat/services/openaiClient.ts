@@ -1,5 +1,5 @@
 import { apiConfig } from '../utils/apiConfig';
-import { DEFAULT_REQUEST_TIMEOUT_MS, requestWithMode } from './request';
+import { DEFAULT_REQUEST_TIMEOUT_MS, requestViaWorker } from './request';
 import type {
   GeminiInlineDataInput,
   GeminiMessage,
@@ -75,8 +75,6 @@ type OpenAIResponse = {
     code: string;
   };
 };
-
-const normalizeBaseUrl = (url: string) => url.replace(/\/$/, '');
 
 const geminiRoleToOpenAI = (role: 'user' | 'model'): 'user' | 'assistant' => {
   return role === 'model' ? 'assistant' : 'user';
@@ -190,14 +188,14 @@ const parseResponse = async (response: Response): Promise<OpenAIResponse> => {
   return (parsed || {}) as OpenAIResponse;
 };
 
-const requestOpenAI = async (payload: OpenAIRequestPayload, apiKey: string, baseUrl: string): Promise<OpenAIResponse> => {
+const requestOpenAI = async (payload: OpenAIRequestPayload): Promise<OpenAIResponse> => {
   try {
-    const response = await requestWithMode({
-      url: `${normalizeBaseUrl(baseUrl)}${MODEL_PATH}`,
+    const response = await requestViaWorker({
+      path: MODEL_PATH,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': 'Bearer PLACEHOLDER', // Worker 会替换为真实 Key
       },
       body: payload,
       timeoutMs: DEFAULT_REQUEST_TIMEOUT_MS,
@@ -256,7 +254,6 @@ const convertOpenAIResponseToGeminiResult = (
     assistantParts.push({ inline_data: { mime_type: 'image/png', data: imageData } });
   }
 
-  // 如果没有任何内容，添加一个空文本避免空消息
   if (assistantParts.length === 0) {
     assistantParts.push({ text: '' });
   }
@@ -282,13 +279,6 @@ const callOpenAIApi = async ({
   images = [],
   history = [],
 }: OpenAICallParams): Promise<GeminiResult> => {
-  const baseUrl = apiConfig.getUrl();
-  const apiKey = apiConfig.getKey();
-
-  if (!baseUrl || !apiKey) {
-    throw new OpenAIClientError('请先配置 API URL 和 Key');
-  }
-
   const openaiHistory = convertHistoryToOpenAI(history);
   const userMessage = buildUserMessage(prompt, images);
   const messages = [...openaiHistory, userMessage];
@@ -300,7 +290,7 @@ const callOpenAIApi = async ({
     stream: false,
   };
 
-  const response = await requestOpenAI(payload, apiKey, baseUrl);
+  const response = await requestOpenAI(payload);
 
   const geminiUserMessage: GeminiMessage = {
     role: 'user',
