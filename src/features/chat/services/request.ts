@@ -1,9 +1,15 @@
-import { apiConfig } from '../utils/apiConfig';
+// 所有请求都通过后端 Worker 代理
 
 export const DEFAULT_REQUEST_TIMEOUT_MS = 20 * 60 * 1000;
 
-type RequestModePayload = {
-  url: string;
+// Worker API 地址，生产环境通过环境变量配置
+const getWorkerUrl = (): string => {
+  // @ts-expect-error Vite 环境变量
+  return import.meta.env.VITE_WORKER_URL || '/api/proxy';
+};
+
+type RequestPayload = {
+  path: string;
   method: string;
   headers: Record<string, string>;
   body?: unknown;
@@ -25,36 +31,22 @@ const fetchWithTimeout = async (
   }
 };
 
-export const requestWithMode = async ({
-  url,
+export const requestViaWorker = async ({
+  path,
   method,
   headers,
   body,
   timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
-}: RequestModePayload): Promise<Response> => {
-  const mode = apiConfig.getRequestMode();
+}: RequestPayload): Promise<Response> => {
   const resolvedTimeout = Math.max(1_000, Math.min(timeoutMs, DEFAULT_REQUEST_TIMEOUT_MS));
 
-  if (mode === 'server') {
-    return fetchWithTimeout(
-      '/api/proxy',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, method, headers, body, timeoutMs: resolvedTimeout }),
-      },
-      resolvedTimeout
-    );
-  }
-
   return fetchWithTimeout(
-    url,
+    getWorkerUrl(),
     {
-      method,
-      headers,
-      body: body == null ? undefined : typeof body === 'string' ? body : JSON.stringify(body),
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, method, headers, body, timeoutMs: resolvedTimeout }),
     },
     resolvedTimeout
   );
 };
-
