@@ -1,82 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
-import fs from 'fs'
 
 const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000
-const DEFAULT_ALLOWED_HOSTNAMES = [
-  'www.packyapi.com',
-  'api-slb.packyapi.com',
-  'poloai.top',
-  'jp.duckcoding.com',
-  'www.galaapi.com',
-  'privnode.com',
-  'jp.privnode.com',
-  'privcoding.cc',
-]
-const DEFAULT_ALLOWED_PROTOCOLS = ['https:']
 
-const parseList = (raw) =>
-  String(raw || '')
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean)
-
-const normalizeProtocol = (value) => {
-  const trimmed = String(value || '').trim()
-  if (!trimmed) return ''
-  return trimmed.endsWith(':') ? trimmed : `${trimmed}:`
-}
-
-const loadAllowlistFromFile = () => {
-  try {
-    const configPath = path.resolve(__dirname, 'proxy.allowlist.json')
-    const raw = fs.readFileSync(configPath, 'utf8')
-    const parsed = JSON.parse(raw)
-
-    const hostnames = Array.isArray(parsed?.hostnames) ? parsed.hostnames.filter((h) => typeof h === 'string') : []
-    const protocols = Array.isArray(parsed?.protocols) ? parsed.protocols.filter((p) => typeof p === 'string') : []
-
-    return {
-      hostnames: hostnames.map((h) => h.trim().toLowerCase()).filter(Boolean),
-      protocols: protocols.map(normalizeProtocol).filter(Boolean),
-    }
-  } catch {
-    return null
-  }
-}
-
-const resolveAllowlist = () => {
-  const envHostnames = parseList(process.env.PROXY_ALLOWLIST_HOSTNAMES || process.env.PROXY_ALLOWED_HOSTNAMES)
-  const envProtocols = parseList(process.env.PROXY_ALLOWLIST_PROTOCOLS)
-  const fileConfig = loadAllowlistFromFile()
-
-  const hostnames =
-    envHostnames.length > 0
-      ? envHostnames.map((h) => h.toLowerCase())
-      : fileConfig?.hostnames?.length
-        ? fileConfig.hostnames
-        : DEFAULT_ALLOWED_HOSTNAMES
-
-  const protocols =
-    envProtocols.length > 0
-      ? envProtocols.map(normalizeProtocol)
-      : fileConfig?.protocols?.length
-        ? fileConfig.protocols
-        : DEFAULT_ALLOWED_PROTOCOLS
-
-  return {
-    hostnames: new Set(hostnames.map((h) => h.trim().toLowerCase()).filter(Boolean)),
-    protocols: new Set(protocols.map(normalizeProtocol).filter(Boolean)),
-  }
-}
-
-const { hostnames: ALLOWED_HOSTNAMES, protocols: ALLOWED_PROTOCOLS } = resolveAllowlist()
+// 开发环境 API 配置
+const API_BASE_URL = process.env.API_BASE_URL || 'https://api.zxvmax.com'
+const API_KEY = process.env.API_KEY || ''
 
 const setCorsHeaders = (res) => {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-goog-api-key')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
 }
 
 const readJsonBody = async (req) => {
@@ -89,25 +24,7 @@ const readJsonBody = async (req) => {
   return JSON.parse(text)
 }
 
-const isHttpUrl = (value) => {
-  try {
-    const url = new URL(value)
-    return url.protocol === 'http:' || url.protocol === 'https:'
-  } catch {
-    return false
-  }
-}
-
-const isAllowedTarget = (value) => {
-  if (!isHttpUrl(value)) return false
-  try {
-    const url = new URL(value)
-    return ALLOWED_PROTOCOLS.has(url.protocol) && ALLOWED_HOSTNAMES.has(url.hostname)
-  } catch {
-    return false
-  }
-}
-
+// 开发环境代理插件，模拟 Worker 行为
 const apiProxyPlugin = () => ({
   name: 'local-api-proxy',
   configureServer(server) {
@@ -137,19 +54,32 @@ const apiProxyPlugin = () => ({
         return
       }
 
-      const { url, method = 'POST', headers = {}, body, timeoutMs } = payload || {}
-      if (!url || typeof url !== 'string') {
+      const { path: apiPath, method = 'POST', headers = {}, body, timeoutMs } = payload || {}
+      
+      if (!apiPath || typeof apiPath !== 'string') {
         res.statusCode = 400
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        res.end(JSON.stringify({ error: { message: '非法的目标 URL' } }))
+        res.end(JSON.stringify({ error: { message: '缺少 path 参数' } }))
         return
       }
 
-      if (!isAllowedTarget(url)) {
-        res.statusCode = 403
+      if (!API_KEY) {
+        res.statusCode = 500
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
-        res.end(JSON.stringify({ error: { message: '目标 URL 不在允许列表中' } }))
+        res.end(JSON.stringify({ error: { message: '请设置 API_KEY 环境变量' } }))
         return
+      }
+
+      const targetUrl = `${API_BASE_URL}${apiPath.startsWith('/') ? apiPath : '/' + apiPath}`
+
+      // 注入 API Key
+      const finalHeaders = { ...headers }
+      if (finalHeaders['x-goog-api-key']) {
+        finalHeaders['x-goog-api-key'] = API_KEY
+      } else if (finalHeaders['Authorization']?.startsWith('Bearer ')) {
+        finalHeaders['Authorization'] = `Bearer ${API_KEY}`
+      } else {
+        finalHeaders['x-goog-api-key'] = API_KEY
       }
 
       const requestTimeoutMs =
@@ -161,9 +91,9 @@ const apiProxyPlugin = () => ({
       const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs)
 
       try {
-        const upstreamResponse = await fetch(url, {
+        const upstreamResponse = await fetch(targetUrl, {
           method: String(method || 'POST').toUpperCase(),
-          headers: headers && typeof headers === 'object' ? headers : {},
+          headers: finalHeaders,
           body: body == null ? undefined : typeof body === 'string' ? body : JSON.stringify(body),
           signal: controller.signal,
         })
