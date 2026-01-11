@@ -6,8 +6,7 @@ const OPENAI_MODEL_LIST_KEY = 'openai_model_list';
 const API_TYPE_KEY = 'api_type';
 
 export const OPENAI_PRESET_MODELS = [
-  'gemini-2.0-flash-exp-image-generation',
-  'gemini-2.0-flash-preview-image-generation',
+  'gemini-3-pro-image-preview',
 ] as const;
 
 export type GeminiModelName = string;
@@ -15,8 +14,8 @@ export type OpenAIModelName = string;
 export type ModelName = string;
 export type ApiType = 'gemini' | 'openai';
 
-const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash-exp-image-generation';
-const DEFAULT_OPENAI_MODEL = 'gemini-2.0-flash-exp-image-generation';
+const DEFAULT_GEMINI_MODEL = 'gemini-3-pro-image-preview';
+const DEFAULT_OPENAI_MODEL = 'gemini-3-pro-image-preview';
 
 const isApiType = (value: unknown): value is ApiType => value === 'gemini' || value === 'openai';
 

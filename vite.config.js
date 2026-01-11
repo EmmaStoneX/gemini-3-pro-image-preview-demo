@@ -1,12 +1,8 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
 const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000
-
-// 开发环境 API 配置
-const API_BASE_URL = process.env.API_BASE_URL || 'https://api.zxvmax.com'
-const API_KEY = process.env.API_KEY || ''
 
 const setCorsHeaders = (res) => {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -25,7 +21,7 @@ const readJsonBody = async (req) => {
 }
 
 // 开发环境代理插件，模拟 Worker 行为
-const apiProxyPlugin = () => ({
+const apiProxyPlugin = (API_BASE_URL, API_KEY) => ({
   name: 'local-api-proxy',
   configureServer(server) {
     server.middlewares.use('/api/proxy', async (req, res) => {
@@ -117,11 +113,17 @@ const apiProxyPlugin = () => ({
 })
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react(), apiProxyPlugin()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  const API_BASE_URL = env.API_BASE_URL || 'https://api.zxvmax.com'
+  const API_KEY = env.API_KEY || ''
+
+  return {
+    plugins: [react(), apiProxyPlugin(API_BASE_URL, API_KEY)],
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
     },
-  },
+  }
 })

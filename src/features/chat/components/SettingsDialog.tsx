@@ -194,7 +194,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     id="gemini-model"
                     value={geminiModel}
                     onChange={(e) => setGeminiModel(e.target.value)}
-                    placeholder="gemini-2.0-flash-exp-image-generation"
+                    placeholder="gemini-3-pro-image-preview"
                   />
                   <p className="text-xs text-muted-foreground">
                     输入 Gemini 模型名称

@@ -41,7 +41,7 @@ type GeminiCallParams = {
 
 const getModelPath = (): string => {
   const model = apiConfig.getGeminiModel().trim();
-  return buildModelPath(model || 'gemini-2.0-flash-exp-image-generation');
+  return buildModelPath(model || 'gemini-3-pro-image-preview');
 };
 
 const cloneHistory = (history: GeminiMessage[] = []): GeminiMessage[] =>
