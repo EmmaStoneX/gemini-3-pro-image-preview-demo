@@ -1,6 +1,6 @@
 # Cloudflare Worker 配置（前后端一体化）
 name = "gemini-image"
-main = "src/index.ts"
+main = "worker/src/index.ts"
 compatibility_date = "2024-01-01"
 
 [vars]
@@ -8,6 +8,6 @@ API_BASE_URL = "https://api.zxvmax.com"
 
 # 静态资源配置（Workers Sites）
 [site]
-bucket = "../dist"
+bucket = "./dist"
 
 # API_KEY 在 Cloudflare Dashboard 中设置为 Secret
