@@ -1,5 +1,5 @@
 import { apiConfig } from '../utils/apiConfig';
-import { DEFAULT_REQUEST_TIMEOUT_MS, requestWithMode } from './request';
+import { DEFAULT_REQUEST_TIMEOUT_MS, requestViaWorker } from './request';
 
 import type {
   GeminiContentPart,
@@ -39,11 +39,9 @@ type GeminiCallParams = {
   useSearch?: boolean;
 };
 
-const normalizeBaseUrl = (url: string) => url.replace(/\/$/, '');
-
 const getModelPath = (): string => {
   const model = apiConfig.getGeminiModel().trim();
-  return buildModelPath(model || 'gemini-3-pro-image-preview');
+  return buildModelPath(model || 'gemini-2.0-flash-exp-image-generation');
 };
 
 const cloneHistory = (history: GeminiMessage[] = []): GeminiMessage[] =>
@@ -180,14 +178,14 @@ const parseResponse = async (response: Response): Promise<GeminiResponse> => {
   return (parsed || {}) as GeminiResponse;
 };
 
-const requestGemini = async (payload: GeminiRequestPayload, apiKey: string, baseUrl: string): Promise<GeminiResponse> => {
+const requestGemini = async (payload: GeminiRequestPayload): Promise<GeminiResponse> => {
   try {
-    const response = await requestWithMode({
-      url: `${normalizeBaseUrl(baseUrl)}${getModelPath()}`,
+    const response = await requestViaWorker({
+      path: getModelPath(),
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
+        'x-goog-api-key': 'PLACEHOLDER', // Worker 会替换为真实 Key
       },
       body: payload,
       timeoutMs: DEFAULT_REQUEST_TIMEOUT_MS,
@@ -214,13 +212,6 @@ const callGeminiApi = async ({
   includeThinking = false,
   useSearch = false,
 }: GeminiCallParams): Promise<GeminiResult> => {
-  const baseUrl = apiConfig.getUrl();
-  const apiKey = apiConfig.getKey();
-
-  if (!baseUrl || !apiKey) {
-    throw new GeminiClientError('请先配置 API URL 和 Key');
-  }
-
   const safeHistory = cloneHistory(history);
   const userMessage = buildUserMessage(prompt, images);
   const contents = [...safeHistory, userMessage];
@@ -240,7 +231,7 @@ const callGeminiApi = async ({
     payload.tools = [{ google_search: {} }];
   }
 
-  const response = await requestGemini(payload, apiKey, baseUrl);
+  const response = await requestGemini(payload);
   const { parts, thinkingImages, textParts } = buildAssistantMessageParts(response, includeThinking);
 
   const updatedHistory: GeminiMessage[] =
