@@ -6,21 +6,16 @@
 
 ### 部署 Worker（后端代理）
 
-1. 进入 worker 目录并部署：
-```bash
-cd worker
-npm install
-npm run deploy
-```
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/EmmaStoneX/gemini-3-pro-image-preview-demo/tree/main/worker)
 
-2. 在 Cloudflare Dashboard 设置 API_KEY：
-   - 打开 [Cloudflare Dashboard](https://dash.cloudflare.com/) → Workers & Pages
-   - 找到 `gemini-image-proxy` → Settings → Variables
-   - 添加变量 `API_KEY`，值为你的 API 密钥，类型选择 `Secret`
+部署后在 Cloudflare Dashboard 设置 API_KEY：
+- 打开 [Cloudflare Dashboard](https://dash.cloudflare.com/) → Workers & Pages
+- 找到 `gemini-image-proxy` → Settings → Variables
+- 添加变量 `API_KEY`，值为你的 API 密钥，类型选择 `Secret`
 
 ### 部署前端（Cloudflare Pages）
 
-[![Deploy to Cloudflare Pages](https://deploy.pages.dev/button)](https://deploy.pages.dev/?url=https://github.com/YOUR_USERNAME/YOUR_REPO)
+[![Deploy to Cloudflare Pages](https://deploy.pages.dev/button)](https://deploy.pages.dev/?url=https://github.com/EmmaStoneX/gemini-3-pro-image-preview-demo)
 
 部署时设置：
 - 构建命令：`npm run build`
