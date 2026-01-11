@@ -19,8 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { apiConfig, type ApiType, type RequestMode } from '../utils/apiConfig';
-import { allowedProxyBaseUrls, isAllowedProxyTargetUrl } from '@/config/proxyAllowlist';
+import { apiConfig, type ApiType } from '../utils/apiConfig';
 
 type SettingsDialogProps = {
   open: boolean;
@@ -28,13 +27,7 @@ type SettingsDialogProps = {
 };
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
-  const [url, setUrl] = useState('');
-  const [apiKey, setApiKey] = useState('');
   const [apiType, setApiType] = useState<ApiType>('gemini');
-  const [requestMode, setRequestMode] = useState<RequestMode>(apiConfig.getRequestMode());
-  const [pendingRequestMode, setPendingRequestMode] = useState<RequestMode | null>(null);
-  const [riskDialogOpen, setRiskDialogOpen] = useState(false);
-  const [error, setError] = useState('');
 
   // Gemini 模型配置
   const [geminiModel, setGeminiModel] = useState('');
@@ -51,17 +44,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   useEffect(() => {
     if (open) {
-      setUrl(apiConfig.getUrl() || 'https://www.packyapi.com');
-      setApiKey(apiConfig.getKey());
       setApiType(apiConfig.getType());
-      setRequestMode(apiConfig.getRequestMode());
-      setPendingRequestMode(null);
-      setRiskDialogOpen(false);
-      setError('');
-
-      // Gemini 模型
       setGeminiModel(apiConfig.getGeminiModel());
-
       setOpenAIModels(apiConfig.getOpenAIModelList());
       setNewOpenAIModel('');
       setOpenAIAddError('');
@@ -84,19 +68,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   }, [apiType]);
 
   const handleSave = () => {
-    if (!url.trim()) {
-      setError('请输入 API URL');
-      return;
-    }
-    if (!apiKey.trim()) {
-      setError('请输入 API Key');
-      return;
-    }
-    apiConfig.setUrl(url.trim());
-    apiConfig.setKey(apiKey.trim());
     apiConfig.setType(apiType);
-    apiConfig.setRequestMode(requestMode);
-    // 保存 Gemini 模型
     if (geminiModel.trim()) {
       apiConfig.setGeminiModel(geminiModel.trim());
     }
@@ -105,17 +77,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   const handleReset = () => {
     apiConfig.clear();
-    setUrl('https://www.packyapi.com');
-    setApiKey('');
     setApiType('gemini');
-    setRequestMode(apiConfig.getRequestMode());
-    setPendingRequestMode(null);
-    setRiskDialogOpen(false);
-    setError('');
-
-    // 重置 Gemini 模型为默认值
     setGeminiModel(apiConfig.getGeminiModel());
-
     setOpenAIModels([]);
     setNewOpenAIModel('');
     setOpenAIAddError('');
@@ -123,49 +86,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     setEditingOpenAIModelValue('');
     setOpenAIEditError('');
     setDeleteConfirmModel(null);
-  };
-
-  const getApiPathHint = () => {
-    if (apiType === 'gemini') {
-      return `${url || '{url}'}/v1beta/models/${geminiModel || '{model}'}:generateContent`;
-    }
-    return `${url || '{url}'}/v1/chat/completions`;
-  };
-
-  const displayRequestMode = pendingRequestMode ?? requestMode;
-  const serverUrlAllowed = url.trim().length === 0 ? false : isAllowedProxyTargetUrl(url.trim());
-
-  const requestModeDescription =
-    displayRequestMode === 'server'
-      ? '由本服务端代您转发请求，可绕过浏览器 CORS，但 Key 会随请求发给服务端；且仅允许白名单域名，详见 proxy.allowlist.json。'
-      : '浏览器直接请求 API，可能遇到 CORS，局域网/内网分享时尤为常见。';
-
-  const handleRequestModeChange = (next: RequestMode) => {
-    if (next === requestMode) return;
-
-    if (next === 'server') {
-      setPendingRequestMode('server');
-      setRiskDialogOpen(true);
-      return;
-    }
-
-    setPendingRequestMode(null);
-    setRequestMode('client');
-    apiConfig.setRequestMode('client');
-  };
-
-  const confirmServerMode = () => {
-    setRiskDialogOpen(false);
-    setPendingRequestMode(null);
-    setRequestMode('server');
-    apiConfig.setRequestMode('server');
-  };
-
-  const cancelServerMode = () => {
-    setRiskDialogOpen(false);
-    setPendingRequestMode(null);
-    setRequestMode('client');
-    apiConfig.setRequestMode('client');
   };
 
   const normalizedOpenAIModels = useMemo(() => openAIModels.map((item) => item.trim()).filter(Boolean), [openAIModels]);
@@ -241,14 +161,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         <DialogHeader>
           <DialogTitle>设置</DialogTitle>
           <DialogDescription>
-            管理您的应用首选项和 API 连接
+            管理模型配置
           </DialogDescription>
         </DialogHeader>
         
         <div className="py-4">
-          {/* API 配置 */}
           <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground">API 配置</h3>
+            <h3 className="text-sm font-medium text-muted-foreground">模型配置</h3>
             <div className="grid gap-4">
               <div className="space-y-2">
                 <Label htmlFor="api-type">API 类型</Label>
@@ -268,7 +187,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 </p>
               </div>
 
-              {/* Gemini 模型 ID 输入 */}
               {apiType === 'gemini' && (
                 <div className="space-y-2">
                   <Label htmlFor="gemini-model">模型 ID</Label>
@@ -276,75 +194,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     id="gemini-model"
                     value={geminiModel}
                     onChange={(e) => setGeminiModel(e.target.value)}
-                    placeholder="gemini-3-pro-image-preview"
+                    placeholder="gemini-2.0-flash-exp-image-generation"
                   />
                   <p className="text-xs text-muted-foreground">
-                    输入 Gemini 模型名称，如 gemini-3-pro-image-preview
+                    输入 Gemini 模型名称
                   </p>
                 </div>
               )}
-
-              <div className="space-y-2">
-                <Label htmlFor="api-url">API URL</Label>
-                <Input
-                  id="api-url"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://www.packyapi.com"
-                />
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {allowedProxyBaseUrls.map((baseUrl) => (
-                    <Button
-                      key={baseUrl}
-                      type="button"
-                      size="sm"
-                      variant={url.trim() === baseUrl ? 'secondary' : 'outline'}
-                      className="h-7 px-2 text-xs"
-                      onClick={() => setUrl(baseUrl)}
-                      title={`使用 ${baseUrl}`}
-                    >
-                      {baseUrl.replace(/^https:\/\//, '')}
-                    </Button>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  请求地址：{getApiPathHint()}
-                </p>
-                {displayRequestMode === 'server' && url.trim() && !serverUrlAllowed && (
-                  <p className="text-xs text-destructive">
-                    当前 URL 不在服务端转发白名单中（请改用上方快捷选项，或修改 proxy.allowlist.json 后重新部署）。
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="api-key">API Key</Label>
-                <Input
-                  id="api-key"
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="输入您的 API Key"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {apiType === 'gemini'
-                    ? 'Key 将通过 x-goog-api-key 头部发送'
-                    : 'Key 将通过 Authorization: Bearer 头部发送'}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="request-mode">请求方式</Label>
-                <Select value={displayRequestMode} onValueChange={(value: RequestMode) => handleRequestModeChange(value)}>
-                  <SelectTrigger id="request-mode">
-                    <SelectValue placeholder="选择请求方式" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="client">客户端直连</SelectItem>
-                    <SelectItem value="server">服务端转发</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">{requestModeDescription}</p>
-              </div>
             </div>
           </div>
 
@@ -354,7 +210,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <div className="space-y-1">
                 <h3 className="text-sm font-medium text-muted-foreground">OpenAI 模型管理</h3>
                 <p className="text-xs text-muted-foreground">
-                  管理可选模型列表（用于聊天栏下拉选择），变更将立即写入 localStorage。
+                  管理可选模型列表（用于聊天栏下拉选择）
                 </p>
               </div>
 
@@ -388,7 +244,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 </div>
                 {openAIModels.length === 0 ? (
                   <div className="px-3 py-3 text-sm text-muted-foreground">
-                    暂无模型，请先添加一个（例如 gpt-4o-mini）。
+                    暂无模型，请先添加一个
                   </div>
                 ) : (
                   <div className="divide-y">
@@ -475,10 +331,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </div>
             </div>
           )}
-
-          {error && (
-            <p className="mt-4 text-sm text-destructive">{error}</p>
-          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
@@ -502,7 +354,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           <DialogHeader>
             <DialogTitle>删除模型</DialogTitle>
             <DialogDescription>
-              确认删除该模型吗？删除后会立即从列表中移除。
+              确认删除该模型吗？
             </DialogDescription>
           </DialogHeader>
           <div className="text-sm">
@@ -515,42 +367,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             </Button>
             <Button variant="destructive" onClick={confirmDeleteModel}>
               删除
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 切换到服务端转发的风险提示 */}
-      <Dialog
-        open={riskDialogOpen}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) cancelServerMode();
-        }}
-      >
-        <DialogContent className="sm:max-w-[520px]">
-          <DialogHeader>
-            <DialogTitle>切换到服务端转发</DialogTitle>
-            <DialogDescription>
-              该模式可解决浏览器直连的 CORS/跨域问题，但存在 Key 传输风险。
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 text-sm">
-            <p>
-              服务端<strong>不会保存</strong>您的 Key，但为了代您发起请求转发，Key <strong>不可避免</strong>会在网络中传输到服务端。
-            </p>
-            <ul className="list-disc pl-5 text-xs text-muted-foreground space-y-1">
-              <li>不要在不受信任的网络环境中分享本页面地址，尤其是局域网/公网转发。</li>
-              <li>建议使用低余额/临时 Key 进行测试。</li>
-              <li>如需最高安全性，请使用客户端直连并确保目标 API 支持 CORS。</li>
-              <li>服务端转发仅允许白名单域名，可在 proxy.allowlist.json 或环境变量中调整。</li>
-            </ul>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={cancelServerMode}>
-              取消
-            </Button>
-            <Button variant="destructive" onClick={confirmServerMode}>
-              确定，知晓风险
             </Button>
           </DialogFooter>
         </DialogContent>
