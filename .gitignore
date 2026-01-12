@@ -4,6 +4,14 @@ node_modules
 .env
 .env.*
 
+# IDE
+.vscode/
+.idea/
+
+# Kiro
+.kiro/
+.spec-workflow/
+
 # Build output
 dist/
 dist-ssr/
