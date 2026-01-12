@@ -1,34 +1,22 @@
-import { getAssetFromKV } from '@cloudflare/kv-asset-handler';
-// @ts-expect-error - 由 wrangler 自动生成
-import manifestJSON from '__STATIC_CONTENT_MANIFEST';
-
-const assetManifest = JSON.parse(manifestJSON);
-
-export interface Env {
+interface Env {
   API_KEY: string;
-  API_BASE_URL: string;
-  __STATIC_CONTENT: KVNamespace;
+  API_BASE_URL?: string;
 }
 
-const CORS_HEADERS = {
+const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
 const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000;
 
-async function handleApiProxy(request: Request, env: Env): Promise<Response> {
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: CORS_HEADERS });
-  }
+export const onRequestOptions: PagesFunction<Env> = async () => {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
+};
 
-  if (request.method !== 'POST') {
-    return Response.json(
-      { error: { message: 'Method Not Allowed' } },
-      { status: 405, headers: CORS_HEADERS }
-    );
-  }
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const { request, env } = context;
 
   let payload: {
     path: string;
@@ -58,7 +46,7 @@ async function handleApiProxy(request: Request, env: Env): Promise<Response> {
 
   if (!env.API_KEY) {
     return Response.json(
-      { error: { message: '请在 Cloudflare Dashboard 设置 API_KEY 环境变量' } },
+      { error: { message: '请在 Cloudflare Pages 设置 API_KEY 环境变量' } },
       { status: 500, headers: CORS_HEADERS }
     );
   }
@@ -112,47 +100,4 @@ async function handleApiProxy(request: Request, env: Env): Promise<Response> {
   } finally {
     clearTimeout(timeoutId);
   }
-}
-
-async function handleStaticAssets(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-  try {
-    return await getAssetFromKV(
-      { request, waitUntil: ctx.waitUntil.bind(ctx) },
-      {
-        ASSET_NAMESPACE: env.__STATIC_CONTENT,
-        ASSET_MANIFEST: assetManifest,
-      }
-    );
-  } catch {
-    // SPA fallback: 返回 index.html
-    const url = new URL(request.url);
-    url.pathname = '/index.html';
-    const indexRequest = new Request(url.toString(), request);
-    
-    try {
-      return await getAssetFromKV(
-        { request: indexRequest, waitUntil: ctx.waitUntil.bind(ctx) },
-        {
-          ASSET_NAMESPACE: env.__STATIC_CONTENT,
-          ASSET_MANIFEST: assetManifest,
-        }
-      );
-    } catch {
-      return new Response('Not Found', { status: 404 });
-    }
-  }
-}
-
-export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const url = new URL(request.url);
-
-    // API 代理路由
-    if (url.pathname === '/api/proxy') {
-      return handleApiProxy(request, env);
-    }
-
-    // 静态资源
-    return handleStaticAssets(request, env, ctx);
-  },
 };
